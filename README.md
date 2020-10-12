@@ -5,7 +5,10 @@ Submit expenses from the command line
 # Install
 With an appropriately configured `GOPATH`:
 
+```sh
+$ cd cmd/blexp
 $ go install
+```
 
 # Requirements
 
