@@ -1,0 +1,60 @@
+# https://taskfile.dev
+
+version: '3'
+
+vars:
+  APP: blexp
+  DIST: dist
+  MODE: dev
+  GO_PACKAGES:
+    sh: go list ./...
+
+tasks:
+  default:
+    cmds:
+      - task: build
+
+  build:
+    desc: Build the application
+    deps: []
+    sources:
+      - '**/*.go'
+    cmds:
+      - 'go build -v -o {{.DIST}}/{{.APP}} cmd/{{.APP}}/*.go'
+
+  run:
+    desc: Run the application
+    deps: [build]
+    cmds:
+      - '{{.DIST}}/{{.APP}}'
+
+  lint:
+    desc: Runs golint
+    deps: []
+    cmds:
+      - golint {{catLines .GO_PACKAGES}}
+
+  vet:
+    desc: Runs golint
+    deps: []
+    cmds:
+      - go vet {{catLines .GO_PACKAGES}}
+
+  test:
+    desc: Run all tests
+    deps: []
+    cmds:
+      - mkdir -p {{.DIST}}
+      - go test -covermode count -coverprofile {{.DIST}}/coverage.txt {{catLines .GO_PACKAGES}}
+  
+  cover:
+    desc: Visualize test coverage
+    deps: [test]
+    cmds:
+      - go tool cover -html={{.DIST}}/coverage.txt
+
+  clean:
+    desc: Remove build artifacts
+    deps: []
+    cmds:
+      - rm -rf {{.DIST}}
