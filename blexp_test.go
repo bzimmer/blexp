@@ -58,6 +58,14 @@ func Test_New(t *testing.T) {
 	a.Equal("me@example.com", b.UserEmail)
 	a.Equal("Broadband", b.Default)
 	a.Equal(2, len(b.Templates))
+
+	// test error in Option
+	b, err = New("user0192", "Cq355CzTQZCp",
+		func(b *Blexp) error {
+			return fmt.Errorf("foobar")
+		})
+	a.Error(err)
+	a.Nil(b)
 }
 
 func Test_WithTemplates(t *testing.T) {
@@ -68,7 +76,17 @@ func Test_WithTemplates(t *testing.T) {
 	err := WithTemplates(templates, "foobar")(b)
 	a.Error(err)
 
+	// test failure when default name is not found in templates
 	err = WithTemplates(make(map[string]expensify.Expense), "foobar")(b)
+	a.Error(err)
+
+	// test success even if more than one key in list
+	err = WithTemplates(templates, "Broadband", "baz", "bar")(b)
+	a.NoError(err)
+	a.Equal("Broadband", b.Default)
+
+	// test error when template key is in the list but not first
+	err = WithTemplates(templates, "baz", "Broadband")(b)
 	a.Error(err)
 }
 
@@ -85,41 +103,55 @@ func Test_SubmitExpense(t *testing.T) {
 
 	// expensify failed
 	WithTransport(ReturnError)(b)
-	txn, err := b.SubmitExpense(ctx, "Broadband")
+	exp, err := b.PrepareExpense("Broadband")
+	a.NotNil(exp)
+	a.NoError(err)
+	txn, err := b.SubmitExpense(ctx, exp)
 	a.Nil(txn)
 	a.Error(err)
 	a.Equal(`Post "https://integrations.expensify.com/Integration-Server/ExpensifyIntegrations": ReturnError`, err.Error())
 
 	// success
 	WithTransport(SubmittedExpenses(1))(b)
-	txn, err = b.SubmitExpense(ctx, "Broadband")
+	exp, err = b.PrepareExpense("Broadband")
+	a.NotNil(exp)
+	a.NoError(err)
+	txn, err = b.SubmitExpense(ctx, exp)
 	a.NotNil(txn)
 	a.NoError(err)
 	a.Equal("6720309558248016", txn.TransactionID)
 
 	// expense template doesn't exist
-	WithTransport(SubmittedExpenses(1))(b)
-	txn, err = b.SubmitExpense(ctx, "foobar")
-	a.Nil(txn)
+	exp, err = b.PrepareExpense("foobar")
+	a.Nil(exp)
 	a.Error(err)
 	a.Equal("failed to find expense template for name {foobar}", err.Error())
 
 	// success default
 	WithTransport(SubmittedExpenses(1))(b)
-	txn, err = b.SubmitExpense(ctx, b.Default)
+	exp, err = b.PrepareExpense(b.Default)
+	a.NotNil(exp)
+	a.NoError(err)
+	txn, err = b.SubmitExpense(ctx, exp)
 	a.NotNil(txn)
 	a.NoError(err)
 	a.Equal("6720309558248016", txn.TransactionID)
 
 	// failure no responses
 	WithTransport(SubmittedExpenses(0))(b)
-	txn, err = b.SubmitExpense(ctx, b.Default)
+	exp, err = b.PrepareExpense(b.Default)
+	a.NotNil(exp)
+	a.NoError(err)
+	txn, err = b.SubmitExpense(ctx, exp)
 	a.Nil(txn)
 	a.Error(err)
 
 	// failure too many responses
 	WithTransport(SubmittedExpenses(2))(b)
-	txn, err = b.SubmitExpense(ctx, b.Default)
+	exp, err = b.PrepareExpense(b.Default)
+	a.NotNil(exp)
+	a.NoError(err)
+	txn, err = b.SubmitExpense(ctx, exp)
 	a.Nil(txn)
 	a.Error(err)
 }

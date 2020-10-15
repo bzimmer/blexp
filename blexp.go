@@ -91,18 +91,21 @@ func WithTransport(f func(*http.Request) (*http.Response, error)) Option {
 	}
 }
 
-// SubmitExpense submits the expense specified by name
-func (b *Blexp) SubmitExpense(ctx context.Context, name string) (*expensify.SubmittedExpense, error) {
+// PrepareExpense creates an expense from name ready for submission
+func (b *Blexp) PrepareExpense(name string) (*expensify.Expense, error) {
 	exp, ok := b.Templates[name]
 	if !ok {
 		return nil, fmt.Errorf("failed to find expense template for name {%s}", name)
 	}
-	expenses := []*expensify.Expense{&exp}
 	exp.Created = expensify.NewTime(time.Now())
 	exp.Comment = fmt.Sprintf("blexp: %s", strings.Split(uuid.New().String(), "-")[0])
+	return &exp, nil
+}
 
+// SubmitExpense submits the expense specified by name
+func (b *Blexp) SubmitExpense(ctx context.Context, exp *expensify.Expense) (*expensify.SubmittedExpense, error) {
 	log.Info().Str("op", "submit").Interface("exp", exp).Msg("submitting expense")
-	submitted, err := b.client.Expense.Create(ctx, b.UserEmail, expenses)
+	submitted, err := b.client.Expense.Create(ctx, b.UserEmail, []*expensify.Expense{exp})
 	if err != nil {
 		return nil, err
 	}

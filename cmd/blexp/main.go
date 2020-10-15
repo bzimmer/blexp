@@ -93,12 +93,6 @@ func list(c *cli.Context) error {
 }
 
 func submit(c *cli.Context) error {
-	var (
-		err       error
-		entry     *zerolog.Event
-		submitted *expensify.SubmittedExpense
-	)
-
 	s := c.Args().Slice()
 	if len(s) == 0 {
 		s = make([]string, 1)
@@ -108,21 +102,23 @@ func submit(c *cli.Context) error {
 	force := c.IsSet("force")
 	ctx := context.Background()
 	for _, x := range s {
-		if force {
-			entry = log.Info()
-			submitted, err = b.SubmitExpense(ctx, x)
-		} else {
-			entry = log.Warn()
-			submitted, err = &expensify.SubmittedExpense{Expense: b.Templates[x]}, nil
+		entry := log.Warn()
+		exp, err := b.PrepareExpense(x)
+		var submitted *expensify.SubmittedExpense
+		if exp != nil {
+			if force {
+				entry = log.Info()
+				submitted, err = b.SubmitExpense(ctx, exp)
+			} else {
+				submitted, err = &expensify.SubmittedExpense{Expense: *exp}, nil
+			}
 		}
-		entry.Err(err).
+		entry.
+			Err(err).
 			Str("template", x).
 			Bool("submitted", force).
 			Interface("exp", submitted).
 			Msg("submit")
-		if err != nil {
-			return err
-		}
 	}
 	return nil
 }
