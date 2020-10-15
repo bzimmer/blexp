@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -15,56 +14,16 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func reader() io.Reader {
-	var data = `
-	UserID = "WzSR7CgIa"
-	UserSecret = "PYlLneWtPBaoIKtObILX1Y5jwQUMaTyh5ARf9klPe"
-	UserEmail = "me@example.com"
-	Default = "Broadband"
-
-	[Templates]
-	[Templates.Whatever]
-	Merchant = "Somebody"
-	Amount = 1122
-	Currency = "USD"
-	Category = "Entertainment"
-	
-	[Templates.Broadband]
-	Merchant = "Xfinity"
-	Amount = 2500
-	Currency = "EUR"
-	Category = "Employee Reimbursement"`
-	return bytes.NewReader([]byte(data))
+var templates = map[string]expensify.Expense{
+	"Whatever":  expensify.Expense{},
+	"Broadband": expensify.Expense{},
 }
 
-func readerNoTemplates() io.Reader {
-	var data = `
-	UserID = "WzSR7CgIa"
-	UserSecret = "PYlLneWtPBaoIKtObILX1Y5jwQUMaTyh5ARf9klPe"
-	UserEmail = "me@example.com"
-	Default = "Broadband"`
-	return bytes.NewReader([]byte(data))
-}
-
-type TestReader struct{}
-
-func (r *TestReader) Read(p []byte) (int, error) {
-	return 0, fmt.Errorf("failed to read")
-}
-
-type TestTransport struct {
-	fn func(*http.Request) (*http.Response, error)
-}
-
-func (t *TestTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	return t.fn(req)
-}
-
-func (t *TestTransport) ReturnError(req *http.Request) (*http.Response, error) {
+func ReturnError(req *http.Request) (*http.Response, error) {
 	return nil, errors.New("ReturnError")
 }
 
-func (t *TestTransport) SubmittedExpenses(n int) func(*http.Request) (*http.Response, error) {
+func SubmittedExpenses(n int) func(*http.Request) (*http.Response, error) {
 	exps := make([]string, n)
 	for i := 0; i < n; i++ {
 		exps[i] = `{
@@ -87,83 +46,80 @@ func (t *TestTransport) SubmittedExpenses(n int) func(*http.Request) (*http.Resp
 	}
 }
 
-func Test_ReadTOML(t *testing.T) {
+func Test_New(t *testing.T) {
 	t.Parallel()
 	a := assert.New(t)
 
-	b, err := New(reader())
+	b, err := New("user0192", "Cq355CzTQZCp",
+		WithTemplates(templates, "Broadband"),
+		WithUserEmail("me@example.com"))
 	a.NoError(err)
-	a.NotNil(b.config)
+	a.NotNil(b)
+	a.Equal("me@example.com", b.UserEmail)
+	a.Equal("Broadband", b.Default)
+	a.Equal(2, len(b.Templates))
+}
 
-	a.Equal("me@example.com", b.config.UserEmail)
-	a.Equal(2, len(b.config.Templates))
-	a.Equal("Employee Reimbursement", b.config.Templates["Broadband"].Category)
-	a.Equal(2500, b.config.Templates["Broadband"].Amount)
-	a.Equal("Broadband", b.Default())
-	a.Equal(2, len(b.Templates()))
+func Test_WithTemplates(t *testing.T) {
+	t.Parallel()
+	a := assert.New(t)
 
-	b, err = New(&TestReader{})
+	b := &Blexp{}
+	err := WithTemplates(templates, "foobar")(b)
 	a.Error(err)
-	a.Nil(b)
-	a.Equal("failed to read", err.Error())
 
-	b, err = New(readerNoTemplates())
+	err = WithTemplates(make(map[string]expensify.Expense), "foobar")(b)
 	a.Error(err)
-	a.Nil(b)
 }
 
 func Test_SubmitExpense(t *testing.T) {
 	t.Parallel()
 	a := assert.New(t)
 
-	transport := &TestTransport{}
-	c, err := expensify.NewClient("foo", "bar", expensify.SetClient(&http.Client{Transport: transport}))
-	a.NotNil(c)
-	a.NoError(err)
-
-	b, err := New(reader())
-	b.SetClient(c)
-	a.NoError(err)
-
 	ctx := context.Background()
+	b, err := New("user9102", "Cq35RuyzTQZCp",
+		WithTemplates(templates, "Broadband"),
+		WithUserEmail("me@example.com"))
+	a.NoError(err)
+	a.NotNil(b)
 
 	// expensify failed
-	transport.fn = transport.ReturnError
+	WithTransport(ReturnError)(b)
 	txn, err := b.SubmitExpense(ctx, "Broadband")
 	a.Nil(txn)
 	a.Error(err)
 	a.Equal(`Post "https://integrations.expensify.com/Integration-Server/ExpensifyIntegrations": ReturnError`, err.Error())
 
 	// success
-	transport.fn = transport.SubmittedExpenses(1)
+	WithTransport(SubmittedExpenses(1))(b)
 	txn, err = b.SubmitExpense(ctx, "Broadband")
 	a.NotNil(txn)
 	a.NoError(err)
 	a.Equal("6720309558248016", txn.TransactionID)
 
 	// expense template doesn't exist
-	transport.fn = transport.SubmittedExpenses(1)
+	WithTransport(SubmittedExpenses(1))(b)
 	txn, err = b.SubmitExpense(ctx, "foobar")
 	a.Nil(txn)
 	a.Error(err)
 	a.Equal("failed to find expense template for name {foobar}", err.Error())
 
 	// success default
-	transport.fn = transport.SubmittedExpenses(1)
-	txn, err = b.SubmitDefault(ctx)
+	WithTransport(SubmittedExpenses(1))(b)
+	txn, err = b.SubmitExpense(ctx, b.Default)
 	a.NotNil(txn)
 	a.NoError(err)
 	a.Equal("6720309558248016", txn.TransactionID)
 
 	// failure no responses
-	transport.fn = transport.SubmittedExpenses(0)
-	txn, err = b.SubmitDefault(ctx)
+	WithTransport(SubmittedExpenses(0))(b)
+	txn, err = b.SubmitExpense(ctx, b.Default)
 	a.Nil(txn)
 	a.Error(err)
 
 	// failure too many responses
-	transport.fn = transport.SubmittedExpenses(2)
-	txn, err = b.SubmitDefault(ctx)
+	WithTransport(SubmittedExpenses(2))(b)
+	txn, err = b.SubmitExpense(ctx, b.Default)
 	a.Nil(txn)
 	a.Error(err)
 }

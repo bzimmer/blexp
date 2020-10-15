@@ -6,66 +6,80 @@ Submit expenses from the command line
 With an appropriately configured `GOPATH`:
 
 ```sh
-$ cd cmd/blexp
-$ go install
+$ task install
 ```
 
 # Requirements
 
-First, follow the [instructions](https://integrations.expensify.com/Integration-Server/doc/) for acquiring an API key. Once you have the key, create a file named `$HOME/.blexp.toml` with the following format:
+First, follow the [instructions](https://integrations.expensify.com/Integration-Server/doc/) for acquiring an API key. Once you have the key, create a file named `$HOME/.blexp.json` with the following format:
 
 ```
 NAME:
    blexp - submit expenses from the cli
 
 USAGE:
-   blexp [global options] command [command options] [arguments...]
+   main [global options] command [command options] [arguments...]
 
 COMMANDS:
-   help, h  Shows a list of commands or help for one command
+   list, l    List expense templates
+   submit, s  Submit expenses
+   help, h    Shows a list of commands or help for one command
 
 GLOBAL OPTIONS:
-   --config FILE, -c FILE     Load configuration from FILE (default: $HOME/.blexp.toml)
-   --force, -f                Force expense submission (default: false)
-   --list, -l                 List expense templates (default: false)
-   --expense value, -e value  Submit an expense for the named template
-   --help, -h                 show help (default: false)
-
-Acquire a UserID and UserSecret at https://integrations.expensify.com/Integration-Server/doc/
-
-Possible expense template values can be found at https://integrations.expensify.com/Integration-Server/doc/#expense-creator
- - All names use SnakeCase
+   --help, -h  show help (default: false)
+  ```
 
 The configuration file format:
 
-  UserID = "some_user_id"
-  UserSecret = "lTLF3PjlcdhkcNgwUkPj2Q"
-  UserEmail = "me@example"
-  Default = "Broadband"
-
-  [Templates]
-
-  [Templates.Broadband]
-  Merchant  = "Comcast"
-  Amount    = 5000
-  Currency  = "USD"
-  Category  = "Employee Reimbursement"
-  Tag       = "20 - My Department"
-
-  [Templates.Lunch]
-  Merchant  = "My Favorite Lunch Place"
-  Amount    = 1500
-  Currency  = "USD"
-  Category  = "Entertainment"
-  Tag       = "20 - My Department"
-  ```
-
-To submit expenses use the `-f` flag:
-
-```sh
-  ~/.../blexp (master) > dist/blexp -f
-{"level":"info","op":"submit","exp":{"merchant":"Comcast","created":"2020-10-11","amount":5000,"currency":"USD","category":"Employee Reimbursement","tag":"20 - My Department","comment":"blexp: 3981e936"},"time":"2020-10-11T18:39:53-07:00","message":"submitting expense"}
-{"level":"info","op":"submitted","exp":{"merchant":"Comcast","created":"2020-10-11","amount":5000,"currency":"USD","category":"Employee Reimbursement","tag":"20 - My Department","comment":"blexp: 3981e936","reportID":6509469,"transactionID":"4309220672839"},"time":"2020-10-11T18:39:54-07:00"}
+```json
+{
+    "user_id": "** user_id **",
+    "user_secret": "** user_secret_key **",
+    "user_email": "me@example.com",
+    "default": "Broadband",
+    "templates": {
+        "Broadband": {
+            "merchant": "Comcast",
+            "amount": 500,
+            "currency": "USD",
+            "category": "Employee Reimbursement",
+            "tag": "30 - People and Me"
+        },
+        "Lunch": {
+            "merchant": "My Favorite Lunch Place",
+            "amount": 1500,
+            "currency": "USD",
+            "category": "Entertainment",
+            "tag": "20 - My Department"
+        }
+    }
+}
 ```
 
-Note a `reportID` & `transactionID` is reported if the successful submission of an expense.
+To list expenses use the `list` command:
+
+```sh
+~ > blexp list
+8:41PM INF reading configuration path=/Users/<someone>/.blexp.json
+8:41PM INF list default=true name=Broadband template={"amount":500,"category":"Employee Reimbursement","created":null,"currency":"USD","merchant":"Comcast","tag":"30 - People and Me"}
+8:41PM INF list default=false name=Lunch template={"amount":1500,"category":"Entertainment","created":null,"currency":"USD","merchant":"My Favorite Lunch Place","tag":"20 - My Department"}
+```
+
+To test submit expenses use the `submit` command:
+
+```sh
+~ > blexp submit Lunch
+8:43PM INF reading configuration path=/Users/<someone>/.blexp.json
+8:43PM WRN submit exp={"amount":1500,"category":"Entertainment","created":null,"currency":"USD","merchant":"My Favorite Lunch Place","tag":"20 - My Department"} submitted=false template=Lunch
+```
+
+To submit expenses use the `submit` command with the `-f` flag:
+
+```sh
+~ > blexp submit -f Lunch
+8:45PM INF reading configuration path=/Users/<someone>/.blexp.json
+8:45PM INF submitting expense exp={"amount":1500,"category":"Entertainment","comment":"blexp: 55708577","created":"2020-10-14","currency":"USD","merchant":"My Favorite Lunch Place","tag":"20 - My Department"} op=submit
+8:45PM INF submit exp={"amount":1500,"category":"Entertainment","comment":"blexp: 55708577","created":"2020-10-14","currency":"USD","merchant":"My Favorite Lunch Place","reportID":65918812,"tag":"20 - My Department","transactionID":"43095306711072841"} submitted=true template=Lunch
+```
+
+Note a `reportID` & `transactionID` are reported if the expense submission was successful.

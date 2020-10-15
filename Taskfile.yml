@@ -3,7 +3,8 @@
 version: '3'
 
 vars:
-  APP: blexp
+  APP:
+    sh: basename $PWD
   DIST: dist
   MODE: dev
   GO_PACKAGES:
@@ -58,3 +59,9 @@ tasks:
     deps: []
     cmds:
       - rm -rf {{.DIST}}
+
+  install:
+    desc: Install {{.APP}}
+    deps: [test]
+    cmds:
+      - cd cmd/{{.APP}} && go install

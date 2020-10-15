@@ -2,76 +2,98 @@ package blexp
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"io"
+	"net/http"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 
-	"github.com/BurntSushi/toml"
 	"github.com/lukasmalkmus/expensify-go"
 )
 
-// Config .
-type Config struct {
-	UserID     string
-	UserSecret string
-	UserEmail  string
-	Default    string
-	Templates  map[string]expensify.Expense
-}
-
 // Blexp holds the necessary bits
 type Blexp struct {
-	config *Config
+	UserEmail string
+	Default   string
+	Templates map[string]expensify.Expense
+
 	client *expensify.Client
 }
 
-// New creates a new blexp instance
-func New(reader io.Reader) (*Blexp, error) {
-	config := &Config{}
-	_, err := toml.DecodeReader(reader, config)
+// Option .
+type Option func(b *Blexp) error
+
+type transport struct {
+	fn func(*http.Request) (*http.Response, error)
+}
+
+func (t *transport) RoundTrip(req *http.Request) (*http.Response, error) {
+	return t.fn(req)
+}
+
+// New .
+func New(userID, userSecret string, options ...Option) (*Blexp, error) {
+	c, err := expensify.NewClient(userID, userSecret)
 	if err != nil {
 		return nil, err
 	}
-	if config.Templates == nil {
-		return nil, fmt.Errorf("no templates found")
+
+	b := &Blexp{client: c}
+	for _, opt := range options {
+		err := opt(b)
+		if err != nil {
+			return nil, err
+		}
 	}
+	return b, err
+}
 
-	client, err := expensify.NewClient(config.UserID, config.UserSecret)
-	if err != nil {
-		return nil, err
+// WithUserEmail .
+func WithUserEmail(userEmail string) Option {
+	return func(b *Blexp) error {
+		b.UserEmail = userEmail
+		return nil
 	}
-	b := &Blexp{config: config, client: client}
-	return b, nil
 }
 
-// SetClient sets the expensify client otherwise the default is used
-func (b *Blexp) SetClient(c *expensify.Client) *Blexp {
-	b.client = c
-	return b
+// WithTemplates .
+func WithTemplates(templates map[string]expensify.Expense, defaults ...string) Option {
+	return func(b *Blexp) error {
+		if len(templates) == 0 {
+			return errors.New("no templates found")
+		}
+		if len(defaults) > 0 {
+			b.Default = defaults[0]
+			if len(defaults) > 1 {
+				log.Warn().Msg("using the first arg as default, the rest are ignored")
+			}
+		}
+		if _, ok := templates[b.Default]; !ok {
+			return fmt.Errorf("default template {%s} not found", b.Default)
+		}
+		b.Templates = templates
+		return nil
+	}
 }
 
-// Default returns the name of the default expense
-func (b *Blexp) Default() string {
-	return b.config.Default
-}
-
-// SubmitDefault submits the default expense
-func (b *Blexp) SubmitDefault(ctx context.Context) (*expensify.SubmittedExpense, error) {
-	return b.SubmitExpense(ctx, b.Default())
-}
-
-// Templates .
-func (b *Blexp) Templates() map[string]expensify.Expense {
-	return b.config.Templates
+// WithTransport .
+func WithTransport(f func(*http.Request) (*http.Response, error)) Option {
+	return func(b *Blexp) error {
+		b.client.Options(
+			expensify.SetClient(
+				&http.Client{Transport: &transport{f}},
+			),
+		)
+		return nil
+	}
 }
 
 // SubmitExpense submits the expense specified by name
 func (b *Blexp) SubmitExpense(ctx context.Context, name string) (*expensify.SubmittedExpense, error) {
-	exp, ok := b.config.Templates[name]
+	exp, ok := b.Templates[name]
 	if !ok {
 		return nil, fmt.Errorf("failed to find expense template for name {%s}", name)
 	}
@@ -80,7 +102,7 @@ func (b *Blexp) SubmitExpense(ctx context.Context, name string) (*expensify.Subm
 	exp.Comment = fmt.Sprintf("blexp: %s", strings.Split(uuid.New().String(), "-")[0])
 
 	log.Info().Str("op", "submit").Interface("exp", exp).Msg("submitting expense")
-	submitted, err := b.client.Expense.Create(ctx, b.config.UserEmail, expenses)
+	submitted, err := b.client.Expense.Create(ctx, b.UserEmail, expenses)
 	if err != nil {
 		return nil, err
 	}
