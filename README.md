@@ -36,7 +36,7 @@ The configuration file format:
     "user_id": "** user_id **",
     "user_secret": "** user_secret_key **",
     "user_email": "me@example.com",
-    "default": "Broadband",
+    "primary": "Broadband",
     "templates": {
         "Broadband": {
             "merchant": "Comcast",
@@ -61,11 +61,11 @@ To list expenses use the `list` command:
 ```sh
 ~ > blexp list
 8:41PM INF reading configuration path=/Users/<someone>/.blexp.json
-8:41PM INF list default=true name=Broadband template={"amount":500,"category":"Employee Reimbursement","created":null,"currency":"USD","merchant":"Comcast","tag":"30 - People and Me"}
-8:41PM INF list default=false name=Lunch template={"amount":1500,"category":"Entertainment","created":null,"currency":"USD","merchant":"My Favorite Lunch Place","tag":"20 - My Department"}
+8:41PM INF list primary=true name=Broadband template={"amount":500,"category":"Employee Reimbursement","created":null,"currency":"USD","merchant":"Comcast","tag":"30 - People and Me"}
+8:41PM INF list primary=false name=Lunch template={"amount":1500,"category":"Entertainment","created":null,"currency":"USD","merchant":"My Favorite Lunch Place","tag":"20 - My Department"}
 ```
 
-To test submit expenses use the `submit` command:
+To test expense submission use the `submit` command with no flags:
 
 ```sh
 ~ > blexp submit Lunch

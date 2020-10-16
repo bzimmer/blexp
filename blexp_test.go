@@ -56,7 +56,7 @@ func Test_New(t *testing.T) {
 	a.NoError(err)
 	a.NotNil(b)
 	a.Equal("me@example.com", b.UserEmail)
-	a.Equal("Broadband", b.Default)
+	a.Equal("Broadband", b.Primary)
 	a.Equal(2, len(b.Templates))
 
 	// test error in Option
@@ -83,7 +83,7 @@ func Test_WithTemplates(t *testing.T) {
 	// test success even if more than one key in list
 	err = WithTemplates(templates, "Broadband", "baz", "bar")(b)
 	a.NoError(err)
-	a.Equal("Broadband", b.Default)
+	a.Equal("Broadband", b.Primary)
 
 	// test error when template key is in the list but not first
 	err = WithTemplates(templates, "baz", "Broadband")(b)
@@ -129,7 +129,7 @@ func Test_SubmitExpense(t *testing.T) {
 
 	// success default
 	WithTransport(SubmittedExpenses(1))(b)
-	exp, err = b.PrepareExpense(b.Default)
+	exp, err = b.PrepareExpense(b.Primary)
 	a.NotNil(exp)
 	a.NoError(err)
 	txn, err = b.SubmitExpense(ctx, exp)
@@ -139,7 +139,7 @@ func Test_SubmitExpense(t *testing.T) {
 
 	// failure no responses
 	WithTransport(SubmittedExpenses(0))(b)
-	exp, err = b.PrepareExpense(b.Default)
+	exp, err = b.PrepareExpense(b.Primary)
 	a.NotNil(exp)
 	a.NoError(err)
 	txn, err = b.SubmitExpense(ctx, exp)
@@ -148,7 +148,7 @@ func Test_SubmitExpense(t *testing.T) {
 
 	// failure too many responses
 	WithTransport(SubmittedExpenses(2))(b)
-	exp, err = b.PrepareExpense(b.Default)
+	exp, err = b.PrepareExpense(b.Primary)
 	a.NotNil(exp)
 	a.NoError(err)
 	txn, err = b.SubmitExpense(ctx, exp)

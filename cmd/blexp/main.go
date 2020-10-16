@@ -24,7 +24,7 @@ type config struct {
 	UserID     string                        `json:"user_id"`
 	UserSecret string                        `json:"user_secret"`
 	UserEmail  string                        `json:"user_email"`
-	Default    string                        `json:"default"`
+	Primary    string                        `json:"primary"`
 	Templates  *map[string]expensify.Expense `json:"templates"`
 }
 
@@ -73,7 +73,7 @@ func initBlexp(c *cli.Context) error {
 		return err
 	}
 	b, err = blexp.New(cfg.UserID, cfg.UserSecret,
-		blexp.WithTemplates(*cfg.Templates, cfg.Default),
+		blexp.WithTemplates(*cfg.Templates, cfg.Primary),
 		blexp.WithUserEmail(cfg.UserEmail))
 	if err != nil {
 		return err
@@ -85,7 +85,7 @@ func list(c *cli.Context) error {
 	for key, val := range b.Templates {
 		log.Info().
 			Str("name", key).
-			Bool("default", key == b.Default).
+			Bool("primary", key == b.Primary).
 			Interface("template", val).
 			Msg("list")
 	}
@@ -96,7 +96,7 @@ func submit(c *cli.Context) error {
 	s := c.Args().Slice()
 	if len(s) == 0 {
 		s = make([]string, 1)
-		s[0] = b.Default
+		s[0] = b.Primary
 	}
 
 	force := c.IsSet("force")

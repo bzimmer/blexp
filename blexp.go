@@ -17,7 +17,7 @@ import (
 // Blexp holds the necessary bits
 type Blexp struct {
 	UserEmail string
-	Default   string
+	Primary   string
 	Templates map[string]expensify.Expense
 
 	client *expensify.Client
@@ -66,13 +66,13 @@ func WithTemplates(templates map[string]expensify.Expense, defaults ...string) O
 			return errors.New("no templates found")
 		}
 		if len(defaults) > 0 {
-			b.Default = defaults[0]
+			b.Primary = defaults[0]
 			if len(defaults) > 1 {
-				log.Warn().Msg("using the first arg as default, the rest are ignored")
+				log.Warn().Msg("using the first arg as primary, the rest are ignored")
 			}
 		}
-		if _, ok := templates[b.Default]; !ok {
-			return fmt.Errorf("default template {%s} not found", b.Default)
+		if _, ok := templates[b.Primary]; !ok {
+			return fmt.Errorf("primary template {%s} not found", b.Primary)
 		}
 		b.Templates = templates
 		return nil
