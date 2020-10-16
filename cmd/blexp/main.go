@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"time"
 
 	"github.com/bzimmer/blexp"
 	"github.com/lukasmalkmus/expensify-go"
@@ -18,7 +19,10 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-var b *blexp.Blexp
+var (
+	b            *blexp.Blexp
+	buildVersion string
+)
 
 type config struct {
 	UserID     string                        `json:"user_id"`
@@ -55,13 +59,17 @@ func readConfig(path string) (*config, error) {
 
 func initLogging(c *cli.Context) error {
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	zerolog.DurationFieldUnit = time.Millisecond
+	zerolog.DurationFieldInteger = true
 	log.Logger = log.Output(
 		zerolog.ConsoleWriter{
 			Out:     os.Stderr,
 			NoColor: false,
 		},
 	)
-	log.Debug().Msg("configured logging")
+	log.Info().
+		Str("build_version", buildVersion).
+		Msg("blexp")
 	return nil
 }
 
@@ -136,6 +144,16 @@ func main() {
 		Usage:  "submit expenses from the cli",
 		Before: initLogging,
 		Commands: []*cli.Command{
+			{
+				Name:    "version",
+				Aliases: []string{"v"},
+				Usage:   "Display the version",
+				Action: func(c *cli.Context) error {
+					// initLogging takes care displaying version information
+					os.Exit(0)
+					return nil
+				},
+			},
 			{
 				Name:    "list",
 				Aliases: []string{"l"},

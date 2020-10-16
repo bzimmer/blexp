@@ -9,6 +9,10 @@ vars:
   MODE: dev
   GO_PACKAGES:
     sh: go list ./...
+  VERSION:
+    sh: git rev-parse --short HEAD
+  LDFLAGS:
+    -ldflags "-X main.buildVersion={{.VERSION}}"
 
 tasks:
   default:
@@ -17,11 +21,10 @@ tasks:
 
   build:
     desc: Build the application
-    deps: []
     sources:
       - '**/*.go'
     cmds:
-      - 'go build -v -o {{.DIST}}/{{.APP}} cmd/{{.APP}}/*.go'
+      - 'go build {{.LDFLAGS}} -o {{.DIST}}/{{.APP}} cmd/{{.APP}}/*.go'
 
   run:
     desc: Run the application
@@ -31,19 +34,16 @@ tasks:
 
   lint:
     desc: Runs golint
-    deps: []
     cmds:
       - golint {{catLines .GO_PACKAGES}}
 
   vet:
     desc: Runs golint
-    deps: []
     cmds:
       - go vet {{catLines .GO_PACKAGES}}
 
   test:
     desc: Run all tests
-    deps: []
     cmds:
       - mkdir -p {{.DIST}}
       - go test -covermode count -coverprofile {{.DIST}}/coverage.txt {{catLines .GO_PACKAGES}}
@@ -56,7 +56,6 @@ tasks:
 
   clean:
     desc: Remove build artifacts
-    deps: []
     cmds:
       - rm -rf {{.DIST}}
 
@@ -64,4 +63,4 @@ tasks:
     desc: Install {{.APP}}
     deps: [test]
     cmds:
-      - cd cmd/{{.APP}} && go install
+      - cd cmd/{{.APP}} && go install {{.LDFLAGS}}
