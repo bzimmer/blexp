@@ -1,35 +1,17 @@
-# Overview
+## Overview
 
 Submit expenses from the command line
 
-# Install
-With an appropriately configured `GOPATH`:
+### Install
+With an appropriately configured `GOPATH` and [Task](https://github.com/go-task/task) installed:
 
 ```sh
 $ task install
 ```
 
-# Requirements
+### Requirements
 
 First, follow the [instructions](https://integrations.expensify.com/Integration-Server/doc/) for acquiring an API key. Once you have the key, create a file named `$HOME/.blexp.json` with the following format:
-
-```
-NAME:
-   blexp - submit expenses from the cli
-
-USAGE:
-   main [global options] command [command options] [arguments...]
-
-COMMANDS:
-   list, l    List expense templates
-   submit, s  Submit expenses
-   help, h    Shows a list of commands or help for one command
-
-GLOBAL OPTIONS:
-   --help, -h  show help (default: false)
-  ```
-
-The configuration file format:
 
 ```json
 {
@@ -56,6 +38,24 @@ The configuration file format:
 }
 ```
 
+Running `blexp -h` will display help:
+
+```
+NAME:
+   blexp - submit expenses from the cli
+
+USAGE:
+   main [global options] command [command options] [arguments...]
+
+COMMANDS:
+   list, l    List expense templates
+   submit, s  Submit expenses
+   help, h    Shows a list of commands or help for one command
+
+GLOBAL OPTIONS:
+   --help, -h  show help (default: false)
+  ```
+
 To list expenses use the `list` command:
 
 ```sh
@@ -65,7 +65,7 @@ To list expenses use the `list` command:
 8:41PM INF list primary=false name=Lunch template={"amount":1500,"category":"Entertainment","created":null,"currency":"USD","merchant":"My Favorite Lunch Place","tag":"20 - My Department"}
 ```
 
-To test expense submission use the `submit` command with no flags:
+To do a dry run expense submission use the `submit` command with no flags:
 
 ```sh
 ~ > blexp submit Lunch
@@ -82,4 +82,4 @@ To submit expenses use the `submit` command with the `-f` flag:
 8:45PM INF submit exp={"amount":1500,"category":"Entertainment","comment":"blexp: 55708577","created":"2020-10-14","currency":"USD","merchant":"My Favorite Lunch Place","reportID":65918812,"tag":"20 - My Department","transactionID":"43095306711072841"} submitted=true template=Lunch
 ```
 
-Note a `reportID` & `transactionID` are reported if the expense submission was successful.
+Note the `reportID` & `transactionID` for a successful expense submission.
