@@ -15,8 +15,8 @@ import (
 )
 
 var templates = map[string]expensify.Expense{
-	"Whatever":  expensify.Expense{},
-	"Broadband": expensify.Expense{},
+	"Whatever":  {},
+	"Broadband": {},
 }
 
 func ReturnError(req *http.Request) (*http.Response, error) {
@@ -102,7 +102,7 @@ func Test_SubmitExpense(t *testing.T) {
 	a.NotNil(b)
 
 	// expensify failed
-	WithTransport(ReturnError)(b)
+	a.NoError(WithTransport(ReturnError)(b))
 	exp, err := b.PrepareExpense("Broadband")
 	a.NotNil(exp)
 	a.NoError(err)
@@ -112,7 +112,7 @@ func Test_SubmitExpense(t *testing.T) {
 	a.Equal(`Post "https://integrations.expensify.com/Integration-Server/ExpensifyIntegrations": ReturnError`, err.Error())
 
 	// success
-	WithTransport(SubmittedExpenses(1))(b)
+	a.NoError(WithTransport(SubmittedExpenses(1))(b))
 	exp, err = b.PrepareExpense("Broadband")
 	a.NotNil(exp)
 	a.NoError(err)
@@ -128,7 +128,7 @@ func Test_SubmitExpense(t *testing.T) {
 	a.Equal("failed to find expense template for name {foobar}", err.Error())
 
 	// success default
-	WithTransport(SubmittedExpenses(1))(b)
+	a.NoError(WithTransport(SubmittedExpenses(1))(b))
 	exp, err = b.PrepareExpense(b.Primary)
 	a.NotNil(exp)
 	a.NoError(err)
@@ -138,7 +138,7 @@ func Test_SubmitExpense(t *testing.T) {
 	a.Equal("6720309558248016", txn.TransactionID)
 
 	// failure no responses
-	WithTransport(SubmittedExpenses(0))(b)
+	a.NoError(WithTransport(SubmittedExpenses(0))(b))
 	exp, err = b.PrepareExpense(b.Primary)
 	a.NotNil(exp)
 	a.NoError(err)
@@ -147,7 +147,7 @@ func Test_SubmitExpense(t *testing.T) {
 	a.Error(err)
 
 	// failure too many responses
-	WithTransport(SubmittedExpenses(2))(b)
+	a.NoError(WithTransport(SubmittedExpenses(2))(b))
 	exp, err = b.PrepareExpense(b.Primary)
 	a.NotNil(exp)
 	a.NoError(err)

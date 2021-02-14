@@ -82,12 +82,11 @@ func WithTemplates(templates map[string]expensify.Expense, defaults ...string) O
 // WithTransport .
 func WithTransport(f func(*http.Request) (*http.Response, error)) Option {
 	return func(b *Blexp) error {
-		b.client.Options(
+		return b.client.Options(
 			expensify.SetClient(
 				&http.Client{Transport: &transport{f}},
 			),
 		)
-		return nil
 	}
 }
 
